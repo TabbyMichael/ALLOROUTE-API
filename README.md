@@ -102,6 +102,27 @@ The engine implements realistic economic behavior:
 
 ---
 
+## 🔒 Security & Resilience
+
+AlloRoute is built with a "Security by Design" mindset, incorporating multiple layers of protection:
+
+### 1. API Abuse Prevention
+- **Rate Limiting**: Implemented using Django REST Framework's `AnonRateThrottle` and `UserRateThrottle` to protect external API quotas and prevent DoS attacks.
+- **Strict Validation**: All incoming requests are validated for length, format, and character set using regex and range validators.
+- **Payload Limits**: Enforced strict `DATA_UPLOAD_MAX_MEMORY_SIZE` to prevent oversized request abuse.
+
+### 2. Infrastructure Hardening
+- **Secure Headers**: Configured HSTS, X-Content-Type-Options, and X-Frame-Options via Django's `SecurityMiddleware`.
+- **CORS Policy**: Strictly controlled `CORS_ALLOWED_ORIGINS` in production; wildcards are disabled.
+- **Non-Root Execution**: Docker containers run as a non-privileged `django` user.
+
+### 3. Operational Security
+- **Log Sanitization**: Automated middleware to scrub sensitive query parameters (e.g., API keys) from all structured logs.
+- **Sanitized Errors**: Custom exception handler ensures internal stack traces and provider-specific details are never exposed to the client.
+- **Safe Timeouts**: All external API requests use strict timeouts and limited retry policies to prevent resource exhaustion.
+
+---
+
 ## 🧪 Testing & Quality Assurance
 
 The system maintains a **multi-layered testing strategy**:

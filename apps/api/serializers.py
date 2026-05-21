@@ -1,26 +1,36 @@
+from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from rest_framework import serializers
 
 class TripOptimizationRequestSerializer(serializers.Serializer):
     """
     Serializer for the trip optimization request.
+    Includes strict validation to prevent abuse and malformed input.
     """
     origin = serializers.CharField(
         help_text="Starting location (e.g., 'New York, NY')",
-        required=True
+        required=True,
+        max_length=255,
+        min_length=2,
+        validators=[RegexValidator(r'^[a-zA-Z0-9\s,.-]+$', "Invalid characters in origin")]
     )
     destination = serializers.CharField(
         help_text="Ending location (e.g., 'Los Angeles, CA')",
-        required=True
+        required=True,
+        max_length=255,
+        min_length=2,
+        validators=[RegexValidator(r'^[a-zA-Z0-9\s,.-]+$', "Invalid characters in destination")]
     )
     
-    # Optional vehicle overrides
+    # Optional vehicle overrides with strict ranges
     max_range_miles = serializers.FloatField(
         default=500.0,
-        help_text="Maximum range of the vehicle in miles."
+        help_text="Maximum range of the vehicle in miles.",
+        validators=[MinValueValidator(50.0), MaxValueValidator(2000.0)]
     )
     miles_per_gallon = serializers.FloatField(
         default=10.0,
-        help_text="Fuel efficiency of the vehicle."
+        help_text="Fuel efficiency of the vehicle.",
+        validators=[MinValueValidator(1.0), MaxValueValidator(100.0)]
     )
 
 class FuelStationSerializer(serializers.Serializer):
