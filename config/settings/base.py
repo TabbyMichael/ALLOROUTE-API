@@ -169,5 +169,15 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "services": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "infrastructure": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }

@@ -15,6 +15,8 @@ from services.routing.provider import (
     ProviderRateLimitError,
 )
 
+from infrastructure.logging.utils import time_execution
+
 logger = logging.getLogger("services.routing")
 
 class OpenRouteServiceProvider:
@@ -40,6 +42,7 @@ class OpenRouteServiceProvider:
         )
         self.session.mount("https://", HTTPAdapter(max_retries=retries))
 
+    @time_execution(name="ors_routing")
     def get_route(self, origin: str, destination: str) -> RouteMetadata:
         """
         Coordinates flow: Geocode Origin -> Geocode Destination -> Get Directions.

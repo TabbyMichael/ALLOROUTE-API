@@ -42,19 +42,24 @@ class CorrelationIdMiddleware:
 class RequestLoggingMiddleware:
     """
     Middleware that logs request details and response status/timing.
+    Includes simple data sanitization for sensitive fields.
     """
+    SENSITIVE_FIELDS = {"api_key", "token", "password", "secret"}
+
     def __init__(self, get_response: Callable):
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         start_time = time.time()
         
-        # Log request start
+        # Log request start with basic sanitization for query params
+        sanitized_path = self._sanitize_url(request.get_full_path())
+        
         logger.info(
-            f"Request started: {request.method} {request.get_full_path()}",
+            f"Request started: {request.method} {sanitized_path}",
             extra={
                 "method": request.method,
-                "path": request.path,
+                "path": sanitized_path,
                 "remote_addr": request.META.get("REMOTE_ADDR"),
                 "user_agent": request.META.get("HTTP_USER_AGENT"),
             }
@@ -66,16 +71,32 @@ class RequestLoggingMiddleware:
         
         # Log request completion
         logger.info(
-            f"Request finished: {request.method} {request.get_full_path()} - {response.status_code} ({duration:.3f}s)",
+            f"Request finished: {request.method} {sanitized_path} - {response.status_code} ({duration:.3f}s)",
             extra={
                 "method": request.method,
-                "path": request.path,
+                "path": sanitized_path,
                 "status_code": response.status_code,
                 "duration_sec": duration,
             }
         )
         
         return response
+
+    def _sanitize_url(self, url: str) -> str:
+        """Simple URL query param sanitization."""
+        if "?" not in url:
+            return url
+        
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        
+        u = urlparse(url)
+        query = parse_qs(u.query)
+        
+        for field in self.SENSITIVE_FIELDS:
+            if field in query:
+                query[field] = ["*****"]
+                
+        return urlunparse(u._replace(query=urlencode(query, doseq=True)))
 
 class CorrelationIdFilter(logging.Filter):
     """

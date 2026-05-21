@@ -7,6 +7,8 @@ import time
 from apps.trips.domain import Coordinate, FuelStationDTO
 from repositories.fuel_station_repository import FuelStationRepository
 
+from infrastructure.logging.utils import time_execution
+
 logger = logging.getLogger("services.fuel")
 
 class SpatialIndexService:
@@ -34,6 +36,7 @@ class SpatialIndexService:
         if self._tree is None:
             self.refresh_index()
 
+    @time_execution(name="spatial_index_refresh")
     def refresh_index(self):
         """
         Loads all fuel stations from the database and rebuilds the spatial index.
@@ -84,6 +87,7 @@ class SpatialIndexService:
         
         return [self._stations[i] for i in indices]
 
+    @time_execution(name="spatial_corridor_search")
     def find_stations_along_corridor(
         self, 
         checkpoints: List[Coordinate], 
