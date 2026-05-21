@@ -1,6 +1,6 @@
 from django.urls import path
+from apps.api.views import TripOptimizeView
 
 urlpatterns = [
-    # Placeholder for trip optimization endpoint
-    # path("trips/optimize/", TripOptimizeView.as_view(), name="trip-optimize"),
+    path("trips/optimize/", TripOptimizeView.as_view(), name="trip-optimize"),
 ]
