@@ -6,6 +6,8 @@ from apps.trips.domain import Coordinate, FuelStationDTO, RouteCheckpoint
 from services.fuel.spatial_index import SpatialIndexService
 from services.routing.geometry import GeometryService
 
+from infrastructure.logging.utils import time_execution
+
 logger = logging.getLogger("services.fuel")
 
 @dataclass(frozen=True)
@@ -31,6 +33,7 @@ class CandidateReductionService:
         self.spatial_index = spatial_index or SpatialIndexService()
         self.geometry_service = geometry_service or GeometryService()
 
+    @time_execution(name="candidate_reduction")
     def reduce_candidates(
         self, 
         checkpoints: List[RouteCheckpoint], 

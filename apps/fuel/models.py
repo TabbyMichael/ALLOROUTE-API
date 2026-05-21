@@ -24,7 +24,11 @@ class FuelStation(models.Model):
         indexes = [
             models.Index(fields=["latitude", "longitude"]),
             models.Index(fields=["price_per_gallon"]),
+            models.Index(fields=["state", "city"]),
+            models.Index(fields=["name"]),
         ]
+        verbose_name = "Fuel Station"
+        verbose_name_plural = "Fuel Stations"
 
     def __str__(self):
         return f"{self.name} - {self.city}, {self.state} (${self.price_per_gallon})"

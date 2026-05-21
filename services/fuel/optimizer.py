@@ -13,6 +13,8 @@ from apps.trips.domain import (
 )
 from services.fuel.candidate_reduction import CandidateStation
 
+from infrastructure.logging.utils import time_execution
+
 logger = logging.getLogger("services.fuel")
 
 @dataclass
@@ -29,6 +31,7 @@ class FuelOptimizerService:
     Optimized for long-distance routes with a vehicle range constraint.
     """
 
+    @time_execution(name="fuel_optimization")
     def optimize(
         self,
         route_metadata: RouteMetadata,

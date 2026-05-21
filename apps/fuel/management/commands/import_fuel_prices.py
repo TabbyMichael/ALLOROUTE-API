@@ -21,10 +21,20 @@ class Command(BaseCommand):
             default=1000,
             help="Number of records to insert per batch.",
         )
+        parser.add_argument(
+            "--clear-existing",
+            action="store_true",
+            help="Clear all existing stations before importing.",
+        )
 
     def handle(self, *args, **options):
         csv_file_path = options["csv_file"]
         batch_size = options["batch_size"]
+        clear_existing = options["clear_existing"]
+
+        if clear_existing:
+            self.stdout.write(self.style.WARNING("Clearing existing stations..."))
+            FuelStation.objects.all().delete()
 
         self.stdout.write(self.style.SUCCESS(f"Starting ingestion from {csv_file_path}..."))
 
@@ -129,16 +139,18 @@ class Command(BaseCommand):
 
     def _bulk_save(self, stations: List[FuelStation]) -> int:
         """
-        Performs a bulk update_or_create-like operation.
-        Since bulk_create with ignore_conflicts doesn't return created count on all DBs,
-        we use a transaction for safety.
+        Performs a bulk upsert operation.
+        Updates existing records if station_id matches.
         """
         try:
             with transaction.atomic():
-                # For SQLite/Postgres, ignore_conflicts works well to avoid duplicates
                 FuelStation.objects.bulk_create(
                     stations,
-                    ignore_conflicts=True,
+                    unique_fields=["station_id"],
+                    update_fields=[
+                        "name", "address", "city", "state", 
+                        "latitude", "longitude", "price_per_gallon"
+                    ],
                 )
             return len(stations)
         except Exception as e:
