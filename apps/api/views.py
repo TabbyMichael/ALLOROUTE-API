@@ -19,6 +19,10 @@ class TripOptimizeView(APIView):
     Endpoint for optimizing fuel stops along a route.
     """
     
+    def get_exception_handler(self):
+        from apps.api.exceptions import custom_exception_handler
+        return custom_exception_handler
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.planner_service = TripPlannerService()
@@ -30,37 +34,27 @@ class TripOptimizeView(APIView):
     )
     def post(self, request, *args, **kwargs):
         serializer = TripOptimizationRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
         
-        try:
-            vehicle_config = VehicleConfig(
-                max_range_miles=data.get("max_range_miles", 500.0),
-                miles_per_gallon=data.get("miles_per_gallon", 10.0)
+        vehicle_config = VehicleConfig(
+            max_range_miles=data.get("max_range_miles", 500.0),
+            miles_per_gallon=data.get("miles_per_gallon", 10.0)
+        )
+
+        result = self.planner_service.plan_optimized_trip(
+            origin=data["origin"],
+            destination=data["destination"],
+            vehicle_config=vehicle_config
+        )
+
+        if not result.fuel_stops and result.route_metadata.total_distance_miles > vehicle_config.max_range_miles:
+            from apps.common.exceptions import BusinessLogicError
+            raise BusinessLogicError(
+                "No valid fuel path found. The destination may be unreachable with current fuel station coverage.",
+                code="no_fuel_path_found"
             )
 
-            result = self.planner_service.plan_optimized_trip(
-                origin=data["origin"],
-                destination=data["destination"],
-                vehicle_config=vehicle_config
-            )
-
-            if not result.fuel_stops and result.route_metadata.total_distance_miles > vehicle_config.max_range_miles:
-                return Response(
-                    {"error": "No valid fuel path found. The destination may be unreachable with current fuel station coverage."},
-                    status=status.HTTP_422_UNPROCESSABLE_ENTITY
-                )
-
-            response_serializer = TripOptimizationResponseSerializer(result)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-
-        except RoutingError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.exception("Unexpected error during trip optimization")
-            return Response(
-                {"error": "An internal server error occurred while planning your trip."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        response_serializer = TripOptimizationResponseSerializer(result)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)

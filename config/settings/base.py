@@ -35,6 +35,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "infrastructure.logging.middleware.CorrelationIdMiddleware",
+    "infrastructure.logging.middleware.RequestLoggingMiddleware",
+    "infrastructure.performance.middleware.PerformanceMetricsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -103,6 +106,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_EXCEPTION_HANDLER": "apps.api.exceptions.custom_exception_handler",
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
@@ -128,13 +132,18 @@ SPECTACULAR_SETTINGS = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "correlation_id": {
+            "()": "infrastructure.logging.middleware.CorrelationIdFilter",
+        },
+    },
     "formatters": {
         "json": {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            "format": "%(asctime)s %(levelname)s %(name)s %(correlation_id)s %(message)s",
         },
         "simple": {
-            "format": "%(levelname)s %(message)s",
+            "format": "[%(correlation_id)s] %(levelname)s %(message)s",
         },
     },
     "handlers": {
@@ -142,6 +151,7 @@ LOGGING = {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "simple",
+            "filters": ["correlation_id"],
         },
     },
     "root": {

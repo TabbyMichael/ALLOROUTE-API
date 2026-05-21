@@ -11,6 +11,8 @@ from services.routing.provider import (
     RoutingError,
     RouteNotFoundError,
     ProviderUnavailableError,
+    ProviderTimeoutError,
+    ProviderRateLimitError,
 )
 
 logger = logging.getLogger("services.routing")
@@ -44,12 +46,24 @@ class OpenRouteServiceProvider:
         Note: While this is 3 calls, it fulfills the 'one route API call' if we 
         consider geocoding as a separate infrastructure concern.
         """
+        logger.info(f"Fetching route from '{origin}' to '{destination}' via ORS")
         try:
             start_coords = self._geocode(origin)
             end_coords = self._geocode(destination)
             
-            return self._fetch_directions(start_coords, end_coords, origin, destination)
+            route = self._fetch_directions(start_coords, end_coords, origin, destination)
+            logger.info(f"Successfully fetched route: {route.total_distance_miles} miles")
+            return route
             
+        except requests.exceptions.Timeout as e:
+            logger.error(f"ORS API request timed out: {e}", extra={"origin": origin, "destination": destination})
+            raise ProviderTimeoutError(f"Routing provider timed out: {e}")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                logger.warning(f"ORS API rate limit hit: {e}")
+                raise ProviderRateLimitError(f"Routing provider rate limit exceeded")
+            logger.error(f"ORS API HTTP error {e.response.status_code}: {e}")
+            raise ProviderUnavailableError(f"Routing provider returned an error: {e}")
         except requests.exceptions.RequestException as e:
             logger.error(f"ORS API request failed: {e}")
             raise ProviderUnavailableError(f"Failed to connect to routing provider: {e}")
@@ -63,6 +77,7 @@ class OpenRouteServiceProvider:
             "size": 1,
         }
         
+        logger.debug(f"Geocoding location: {location}")
         response = self.session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
         
@@ -70,6 +85,7 @@ class OpenRouteServiceProvider:
         features = data.get("features", [])
         
         if not features:
+            logger.warning(f"No coordinates found for: {location}")
             raise RouteNotFoundError(f"Could not find coordinates for location: {location}")
             
         coords = features[0]["geometry"]["coordinates"]
@@ -90,9 +106,11 @@ class OpenRouteServiceProvider:
             "end": f"{end[0]},{end[1]}",
         }
         
+        logger.debug(f"Fetching directions from {start} to {end}")
         response = self.session.get(url, params=params, timeout=self.timeout)
         
         if response.status_code == 404:
+            logger.warning(f"No route found between {origin_name} and {destination_name}")
             raise RouteNotFoundError(f"No route found between {origin_name} and {destination_name}")
             
         response.raise_for_status()
