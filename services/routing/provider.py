@@ -1,5 +1,11 @@
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, Optional, Dict, Any
 from apps.trips.domain import RouteMetadata, Coordinate
+from apps.common.exceptions import (
+    AlloRouteError, 
+    ResourceNotFoundError, 
+    ExternalServiceError,
+    ServiceTimeoutError
+)
 
 @runtime_checkable
 class RoutingProvider(Protocol):
@@ -23,14 +29,26 @@ class RoutingProvider(Protocol):
         """
         ...
 
-class RoutingError(Exception):
+class RoutingError(AlloRouteError):
     """Base exception for routing related errors."""
     pass
 
-class RouteNotFoundError(RoutingError):
+class RouteNotFoundError(ResourceNotFoundError, RoutingError):
     """Raised when no route is found between points."""
-    pass
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, code="route_not_found", details=details)
 
-class ProviderUnavailableError(RoutingError):
+class ProviderUnavailableError(ExternalServiceError, RoutingError):
     """Raised when the external API is unreachable or returns a server error."""
-    pass
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, code="provider_unavailable", details=details)
+
+class ProviderTimeoutError(ServiceTimeoutError, RoutingError):
+    """Raised when the routing provider request times out."""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, code="provider_timeout", details=details)
+
+class ProviderRateLimitError(ExternalServiceError, RoutingError):
+    """Raised when the routing provider returns a 429 Too Many Requests."""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, code="provider_rate_limit", details=details)
