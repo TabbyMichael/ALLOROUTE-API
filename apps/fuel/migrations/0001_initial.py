@@ -7,26 +7,53 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='FuelStation',
+            name="FuelStation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('station_id', models.IntegerField(help_text='Original ID from the dataset', unique=True)),
-                ('name', models.CharField(max_length=255)),
-                ('address', models.CharField(max_length=255)),
-                ('city', models.CharField(max_length=100)),
-                ('state', models.CharField(help_text='Two-letter state code', max_length=2)),
-                ('latitude', models.FloatField()),
-                ('longitude', models.FloatField()),
-                ('price_per_gallon', models.DecimalField(decimal_places=3, max_digits=10)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "station_id",
+                    models.IntegerField(
+                        help_text="Original ID from the dataset", unique=True
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("address", models.CharField(max_length=255)),
+                ("city", models.CharField(max_length=100)),
+                (
+                    "state",
+                    models.CharField(help_text="Two-letter state code", max_length=2),
+                ),
+                ("latitude", models.FloatField()),
+                ("longitude", models.FloatField()),
+                (
+                    "price_per_gallon",
+                    models.DecimalField(decimal_places=3, max_digits=10),
+                ),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'indexes': [models.Index(fields=['latitude', 'longitude'], name='fuel_fuelst_latitud_e7de73_idx'), models.Index(fields=['price_per_gallon'], name='fuel_fuelst_price_p_e5a46d_idx')],
+                "indexes": [
+                    models.Index(
+                        fields=["latitude", "longitude"],
+                        name="fuel_fuelst_latitud_e7de73_idx",
+                    ),
+                    models.Index(
+                        fields=["price_per_gallon"],
+                        name="fuel_fuelst_price_p_e5a46d_idx",
+                    ),
+                ],
             },
         ),
     ]

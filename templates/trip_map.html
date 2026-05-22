@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Optimizer Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .autocomplete-dropdown { z-index: 1000; }
+    </style>
+</head>
+<body class="h-screen flex">
+    <div id="sidebar" class="w-1/4 p-4 overflow-y-auto bg-gray-100 border-r">
+        <h1 class="text-xl font-bold mb-4">Trip Optimizer</h1>
+        <form id="trip-form" class="space-y-4">
+            <div class="relative">
+                <input type="text" id="start" placeholder="Start location..." class="w-full p-2 border rounded" required autocomplete="off">
+                <div id="start-results" class="absolute w-full bg-white border mt-1 hidden autocomplete-dropdown"></div>
+            </div>
+            <div class="relative">
+                <input type="text" id="finish" placeholder="Finish location..." class="w-full p-2 border rounded" required autocomplete="off">
+                <div id="finish-results" class="absolute w-full bg-white border mt-1 hidden autocomplete-dropdown"></div>
+            </div>
+            <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Optimize Trip</button>
+        </form>
+        <div id="summary" class="mt-6 text-sm"></div>
+    </div>
+    <div id="map" class="flex-1"></div>
+
+    <script>
+        const map = L.map('map').setView([39.8283, -98.5795], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        let routeLayer = L.layerGroup().addTo(map);
+        let markerLayer = L.layerGroup().addTo(map);
+
+        function setupAutocomplete(inputId, resultsId) {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+            let timer;
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(timer);
+                if (e.target.value.length < 3) { results.classList.add('hidden'); return; }
+                timer = setTimeout(async () => {
+                    const res = await fetch(`https://photon.komoot.io/api/?q=${e.target.value}&bbox=-125.0,24.0,-66.9,49.0&limit=5`);
+                    const data = await res.json();
+                    results.innerHTML = data.features.map(f => `<div class="p-2 hover:bg-gray-200 cursor-pointer" data-lat="${f.geometry.coordinates[1]}" data-lng="${f.geometry.coordinates[0]}">${f.properties.name}, ${f.properties.state || ''}</div>`).join('');
+                    results.classList.remove('hidden');
+                }, 300);
+            });
+
+            results.addEventListener('click', (e) => {
+                input.value = e.target.textContent;
+                input.dataset.coords = JSON.stringify([e.target.dataset.lat, e.target.dataset.lng]);
+                results.classList.add('hidden');
+            });
+        }
+
+        setupAutocomplete('start', 'start-results');
+        setupAutocomplete('finish', 'finish-results');
+
+        document.getElementById('trip-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true; btn.textContent = 'Processing...';
+
+            const startCoords = JSON.parse(document.getElementById('start').dataset.coords);
+            const finishCoords = JSON.parse(document.getElementById('finish').dataset.coords);
+
+            try {
+                const res = await fetch('/api/v1/trips/optimize/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        origin: `${startCoords[0]},${startCoords[1]}`, 
+                        destination: `${finishCoords[0]},${finishCoords[1]}` 
+                    })
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || errorData.detail || 'Optimization failed');
+                }
+
+                const data = await res.json();
+                routeLayer.clearLayers(); markerLayer.clearLayers();
+
+                if (data.route_metadata && data.route_metadata.coordinates) {
+                    L.polyline(data.route_metadata.coordinates, {color: '#3b82f6', weight: 5}).addTo(routeLayer);
+                    map.fitBounds(L.polyline(data.route_metadata.coordinates).getBounds());
+                }
+
+                data.fuel_stops.forEach(stop => {
+                    L.marker([stop.station.lat, stop.station.lng]).addTo(markerLayer).bindPopup(`
+                        <b>${stop.station.name}</b><br>
+                        Price: $${stop.station.price_per_gallon}/gal<br>
+                        Refuel: ${stop.gallons_to_buy.toFixed(2)} gal<br>
+                        Cost: $${stop.cost.toFixed(2)}
+                    `);
+                });
+
+                document.getElementById('summary').innerHTML = `Total Cost: $${data.total_fuel_cost.toFixed(2)}`;
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+                console.error(err);
+            } finally {
+                btn.disabled = false; btn.textContent = 'Optimize Trip';
+            }
+        });
+    </script>
+</body>
+</html>

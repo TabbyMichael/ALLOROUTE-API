@@ -7,21 +7,28 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='TripOptimizationRequest',
+            name="TripOptimizationRequest",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('origin', models.CharField(max_length=255)),
-                ('destination', models.CharField(max_length=255)),
-                ('vehicle_range', models.FloatField(default=500.0)),
-                ('fuel_efficiency', models.FloatField(default=10.0)),
-                ('result_data', models.JSONField(blank=True, null=True)),
-                ('execution_time_ms', models.FloatField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("origin", models.CharField(max_length=255)),
+                ("destination", models.CharField(max_length=255)),
+                ("vehicle_range", models.FloatField(default=500.0)),
+                ("fuel_efficiency", models.FloatField(default=10.0)),
+                ("result_data", models.JSONField(blank=True, null=True)),
+                ("execution_time_ms", models.FloatField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
     ]

@@ -1,0 +1,4 @@
+-r base.txt
+gunicorn>=22.0,<23.0
+uvicorn>=0.29,<0.30
+django-redis>=5.4,<5.5
