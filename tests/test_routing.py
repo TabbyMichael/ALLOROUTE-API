@@ -28,17 +28,13 @@ class RoutingProviderTest(SimpleTestCase):
         )
         # Mock Directions
         responses.add(
-            responses.GET,
-            "https://api.openrouteservice.org/v2/directions/driving-car",
+            responses.POST,
+            "https://api.openrouteservice.org/v2/directions/driving-car/json",
             json={
-                "features": [
+                "routes": [
                     {
-                        "geometry": {
-                            "coordinates": [[-87.62, 41.87], [-104.99, 39.73]]
-                        },
-                        "properties": {
-                            "segments": [{"distance": 1600000, "duration": 54000}]
-                        },
+                        "summary": {"distance": 1600000, "duration": 54000},
+                        "geometry": "encoded_polyline_string"
                     }
                 ]
             },

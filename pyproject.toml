@@ -18,6 +18,8 @@ plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.development"
+# Note: Ensure GEOS and GDAL libraries are installed on the host system 
+# for PostGIS functionality: apt-get install libgeos-dev gdal-bin libgdal-dev
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.development"
