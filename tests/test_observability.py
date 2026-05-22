@@ -3,12 +3,20 @@ from unittest.mock import MagicMock, patch
 import responses
 from django.test import override_settings
 from django.urls import reverse
+from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from apps.trips.domain import OptimizationResult, RouteMetadata, VehicleConfig
+from apps.common.roles import UserRole
 
 
 class ObservabilityTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="test", password="password")
+        self.user.profile.role = UserRole.BASIC.value
+        self.user.profile.save()
+        self.client.force_authenticate(user=self.user)
+
     def test_correlation_id_in_response(self):
         """Verify that X-Correlation-ID is returned in the response headers."""
         url = reverse("trip-optimize")
@@ -21,7 +29,7 @@ class ObservabilityTest(APITestCase):
                 vehicle_config=VehicleConfig(),
             )
             response = self.client.post(
-                url, {"origin": "A", "destination": "B"}, format="json"
+                url, {"origin": "Chicago, IL", "destination": "Los Angeles, CA"}, format="json"
             )
 
         self.assertIn("X-Correlation-ID", response)
@@ -41,7 +49,7 @@ class ObservabilityTest(APITestCase):
             )
             response = self.client.post(
                 url,
-                {"origin": "A", "destination": "B"},
+                {"origin": "Chicago, IL", "destination": "Los Angeles, CA"},
                 format="json",
                 HTTP_X_CORRELATION_ID=custom_id,
             )
@@ -56,12 +64,10 @@ class ObservabilityTest(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.data)
-        # In our custom handler, we map DRF errors to our structure
         self.assertEqual(response.data["error"]["code"], 400)
 
     def test_custom_exception_mapping(self):
         """Verify that AlloRouteError subclasses map to correct status codes."""
-        from apps.api.views import TripOptimizeView
         from apps.common.exceptions import (
             ResourceNotFoundError,
             ServiceTimeoutError,

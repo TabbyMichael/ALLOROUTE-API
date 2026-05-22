@@ -1,0 +1,285 @@
+openapi: 3.0.3
+info:
+  title: AlloRoute Fuel Optimization API
+  version: 1.0.0
+  description: API for optimizing fuel stops along a route.
+paths:
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      description: Custom login view that returns access and refresh tokens.
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlloRouteTokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AlloRouteTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AlloRouteTokenObtainPairRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Token pair generated successfully
+        '401':
+          description: Invalid credentials
+  /api/v1/auth/refresh/:
+    post:
+      operationId: v1_auth_refresh_create
+      description: Custom token refresh view.
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Token refreshed successfully
+        '401':
+          description: Invalid or expired refresh token
+  /api/v1/trips/optimize/:
+    post:
+      operationId: v1_trips_optimize_create
+      description: Calculates the most cost-effective fuel stops between two locations
+        in the USA.
+      tags:
+      - Trips
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripOptimizationRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TripOptimizationRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TripOptimizationRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripOptimizationResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: ''
+components:
+  schemas:
+    AlloRouteTokenObtainPairRequest:
+      type: object
+      description: Customizes the JWT payload to include role and tier information.
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          description: Additional error context
+      required:
+      - code
+      - message
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+      required:
+      - error
+    FuelStation:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        price_per_gallon:
+          type: number
+          format: double
+      required:
+      - address
+      - city
+      - id
+      - lat
+      - lng
+      - name
+      - price_per_gallon
+      - state
+    FuelStop:
+      type: object
+      properties:
+        station:
+          $ref: '#/components/schemas/FuelStation'
+        gallons_to_buy:
+          type: number
+          format: double
+        cost:
+          type: number
+          format: double
+        distance_from_start:
+          type: number
+          format: double
+        remaining_range_after_refuel:
+          type: number
+          format: double
+      required:
+      - cost
+      - distance_from_start
+      - gallons_to_buy
+      - remaining_range_after_refuel
+      - station
+    RouteMetadata:
+      type: object
+      properties:
+        origin:
+          type: string
+        destination:
+          type: string
+        total_distance_miles:
+          type: number
+          format: double
+        total_duration_seconds:
+          type: number
+          format: double
+        polyline:
+          type: string
+        coordinates:
+          type: string
+          readOnly: true
+      required:
+      - coordinates
+      - destination
+      - origin
+      - polyline
+      - total_distance_miles
+      - total_duration_seconds
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TripOptimizationRequestRequest:
+      type: object
+      description: |-
+        Serializer for the trip optimization request.
+        Includes strict validation to prevent abuse and malformed input.
+      properties:
+        origin:
+          type: string
+          minLength: 2
+          description: Starting location (e.g., 'New York, NY')
+          pattern: ^[a-zA-Z0-9\s,.-]+$
+          maxLength: 255
+        destination:
+          type: string
+          minLength: 2
+          description: Ending location (e.g., 'Los Angeles, CA')
+          pattern: ^[a-zA-Z0-9\s,.-]+$
+          maxLength: 255
+        max_range_miles:
+          type: number
+          format: double
+          default: 500.0
+          description: Maximum range of the vehicle in miles.
+          minimum: 50.0
+          maximum: 2000.0
+        miles_per_gallon:
+          type: number
+          format: double
+          default: 10.0
+          description: Fuel efficiency of the vehicle.
+          minimum: 1.0
+          maximum: 100.0
+      required:
+      - destination
+      - origin
+    TripOptimizationResponse:
+      type: object
+      description: Serializer for the final optimization result.
+      properties:
+        route_metadata:
+          $ref: '#/components/schemas/RouteMetadata'
+        fuel_stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/FuelStop'
+        total_fuel_cost:
+          type: number
+          format: double
+      required:
+      - fuel_stops
+      - route_metadata
+      - total_fuel_cost

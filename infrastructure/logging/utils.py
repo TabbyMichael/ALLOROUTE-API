@@ -1,49 +1,35 @@
-import functools
 import logging
 import time
-from typing import Any, Callable
+import threading
+from functools import wraps
 
-logger = logging.getLogger("infrastructure.logging.instrumentation")
+thread_local = threading.local()
 
-
-def time_execution(name: str = None):
+class CorrelationIdFilter(logging.Filter):
     """
-    Decorator that logs the execution time of a function.
-    Useful for service-level instrumentation.
+    Filter that injects a correlation ID into the log record.
     """
+    def filter(self, record):
+        record.correlation_id = getattr(thread_local, "correlation_id", "no-id")
+        return True
 
-    def decorator(func: Callable):
-        @functools.wraps(func)
+def get_correlation_id():
+    return getattr(thread_local, "correlation_id", "no-id")
+
+
+def time_execution(name: str):
+    """
+    Decorator to log execution time of a function.
+    """
+    def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
-            operation_name = name or func.__name__
-            start_time = time.time()
-
-            try:
-                result = func(*args, **kwargs)
-                duration_ms = (time.time() - start_time) * 1000
-
-                logger.info(
-                    f"Operation '{operation_name}' completed",
-                    extra={
-                        "operation": operation_name,
-                        "duration_ms": round(duration_ms, 2),
-                        "status": "success",
-                    },
-                )
-                return result
-            except Exception as e:
-                duration_ms = (time.time() - start_time) * 1000
-                logger.error(
-                    f"Operation '{operation_name}' failed after {duration_ms:.2f}ms: {str(e)}",
-                    extra={
-                        "operation": operation_name,
-                        "duration_ms": round(duration_ms, 2),
-                        "status": "error",
-                        "error_type": type(e).__name__,
-                    },
-                )
-                raise
-
+            start = time.time()
+            result = func(*args, **kwargs)
+            duration = (time.time() - start) * 1000
+            logging.getLogger("infrastructure.performance").info(
+                f"EXECUTION_TIME | {name} | {duration:.2f}ms"
+            )
+            return result
         return wrapper
-
     return decorator

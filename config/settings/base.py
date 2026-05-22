@@ -24,21 +24,24 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.gis",
     # Third party
     "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_spectacular",
     # Local apps
     "apps.api",
+    "apps.common",
     "apps.fuel",
     "apps.routing",
     "apps.trips",
 ]
 
 MIDDLEWARE = [
-    "infrastructure.logging.middleware.CorrelationIdMiddleware",
-    "infrastructure.logging.middleware.RequestLoggingMiddleware",
-    "infrastructure.performance.middleware.PerformanceMetricsMiddleware",
+    "infrastructure.logging.middleware.AuditLoggingMiddleware",
+    "infrastructure.performance.middleware.IdempotencyMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -71,7 +74,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # Database
-DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
+DATABASES = {"default": env.db("DATABASE_URL", default="postgis://postgres:postgres@db:5432/alloroute")}
+DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -119,6 +123,9 @@ X_FRAME_OPTIONS = "DENY"
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_EXCEPTION_HANDLER": "apps.api.exceptions.custom_exception_handler",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.api.authentication.AlloRouteJWTAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
@@ -148,7 +155,35 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API for optimizing fuel stops along a route.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_PATCH": True,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [
+        {"jwtAuth": []},
+    ],
 }
+
+# JWT Settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+}
+
+# Celery Settings
+CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = env("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
 
 # Logging
 LOGGING = {
@@ -156,7 +191,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "filters": {
         "correlation_id": {
-            "()": "infrastructure.logging.middleware.CorrelationIdFilter",
+            "()": "infrastructure.logging.utils.CorrelationIdFilter",
         },
     },
     "formatters": {

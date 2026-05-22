@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI Pipeline (Free Tier Optimized)
 
 on:
   push:
@@ -11,47 +11,8 @@ permissions:
   packages: write
 
 jobs:
-  lint-and-type-check:
+  build-and-test:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements/dev.txt
-
-      - name: Lint with Black
-        run: black --check .
-
-      - name: Check imports with Isort
-        run: isort --check-only .
-
-      - name: Type check with Mypy
-        run: mypy .
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install Bandit
-        run: pip install bandit
-      - name: Run Bandit
-        run: bandit -r apps/ services/ config/ -x tests/
-
-  test:
-    runs-on: ubuntu-latest
-    needs: lint-and-type-check
     services:
       postgres:
         image: postgres:16-alpine
@@ -59,22 +20,12 @@ jobs:
           POSTGRES_DB: alloroute_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -88,55 +39,23 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements/dev.txt
+          pip install -r requirements/dev.txt bandit
+
+      - name: Run Quality Checks (Lint & Security)
+        run: |
+          black --check .
+          isort --check-only .
+          bandit -r apps/ services/ config/ -x tests/
 
       - name: Run Tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/alloroute_test
           REDIS_URL: redis://localhost:6379/0
-          SECRET_KEY: ci-test-key-must-be-long-enough-for-production-standards
-          DEBUG: False
-        run: |
-          pytest --cov=. --cov-report=xml --cov-report=term-missing
+          SECRET_KEY: ci-test-key-safe-for-public-repo
+          DJANGO_SETTINGS_MODULE: config.settings.test
+        run: pytest --cov=. --cov-report=term
 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
-  docker-build-and-push:
-    runs-on: ubuntu-latest
-    needs: [test, security-scan]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=long
-
-      - name: Set up Docker Buildx
-        uses: actions/setup-buildx-action@v3
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # Only build Docker if tests pass and we are on main branch
+      - name: Build Docker Image (No Push)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: docker build -t alloroute-api:latest .

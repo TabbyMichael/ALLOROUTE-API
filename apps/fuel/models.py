@@ -1,35 +1,35 @@
-from django.db import models
+from django.contrib.gis.db import models
+from django.db import models as base_models
 
 
-class FuelStation(models.Model):
+class FuelStation(base_models.Model):
     """
     Persistence model for fuel stations ingested from the provided dataset.
+    Uses PostGIS PointField for high-performance spatial queries.
     """
 
-    station_id = models.IntegerField(
+    station_id = base_models.IntegerField(
         unique=True, help_text="Original ID from the dataset"
     )
-    name = models.CharField(max_length=255)
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=2, help_text="Two-letter state code")
+    name = base_models.CharField(max_length=255)
+    address = base_models.CharField(max_length=255)
+    city = base_models.CharField(max_length=100)
+    state = base_models.CharField(max_length=2, help_text="Two-letter state code")
 
-    # Geographic coordinates
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+    # Geographic coordinates (PostGIS)
+    location = models.PointField(geography=True, help_text="GIS location (lng, lat)")
 
     # Pricing
-    price_per_gallon = models.DecimalField(max_digits=10, decimal_places=3)
+    price_per_gallon = base_models.DecimalField(max_digits=10, decimal_places=3)
 
     # Metadata
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = base_models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=["latitude", "longitude"]),
-            models.Index(fields=["price_per_gallon"]),
-            models.Index(fields=["state", "city"]),
-            models.Index(fields=["name"]),
+            base_models.Index(fields=["price_per_gallon"]),
+            base_models.Index(fields=["state", "city"]),
+            base_models.Index(fields=["name"]),
         ]
         verbose_name = "Fuel Station"
         verbose_name_plural = "Fuel Stations"

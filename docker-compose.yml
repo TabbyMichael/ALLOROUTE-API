@@ -36,7 +36,7 @@ services:
       - api
 
   db:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.4
     container_name: alloroute_db
     hostname: db
     restart: always
