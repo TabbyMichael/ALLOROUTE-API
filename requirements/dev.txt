@@ -1,0 +1,11 @@
+-r base.txt
+pytest-django>=4.8,<4.9
+pytest-cov>=5.0,<5.1
+pytest-mock>=3.14,<3.15
+responses>=0.25,<0.26
+black>=24.4,<24.5
+isort>=5.13,<5.14
+mypy>=1.10,<1.11
+pre-commit>=3.7,<3.8
+django-stubs>=5.0,<5.1
+djangorestframework-stubs>=3.15,<3.16

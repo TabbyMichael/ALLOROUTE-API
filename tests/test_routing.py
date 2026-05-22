@@ -1,8 +1,10 @@
 import pytest
 import responses
 from django.test import SimpleTestCase
+
+from services.routing.provider import ProviderUnavailableError, RouteNotFoundError
 from services.routing.providers.ors_provider import OpenRouteServiceProvider
-from services.routing.provider import RouteNotFoundError, ProviderUnavailableError
+
 
 class RoutingProviderTest(SimpleTestCase):
     def setUp(self):
@@ -29,16 +31,22 @@ class RoutingProviderTest(SimpleTestCase):
             responses.GET,
             "https://api.openrouteservice.org/v2/directions/driving-car",
             json={
-                "features": [{
-                    "geometry": {"coordinates": [[-87.62, 41.87], [-104.99, 39.73]]},
-                    "properties": {"segments": [{"distance": 1600000, "duration": 54000}]}
-                }]
+                "features": [
+                    {
+                        "geometry": {
+                            "coordinates": [[-87.62, 41.87], [-104.99, 39.73]]
+                        },
+                        "properties": {
+                            "segments": [{"distance": 1600000, "duration": 54000}]
+                        },
+                    }
+                ]
             },
             status=200,
         )
 
         route = self.ors_provider.get_route("Chicago, IL", "Denver, CO")
-        
+
         self.assertEqual(route.origin, "Chicago, IL")
         self.assertEqual(route.destination, "Denver, CO")
         self.assertGreater(route.total_distance_miles, 0)

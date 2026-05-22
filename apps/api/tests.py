@@ -1,31 +1,52 @@
-import responses
-from rest_framework.test import APITestCase
-from django.urls import reverse
-from unittest.mock import MagicMock
 from decimal import Decimal
+from unittest.mock import MagicMock
+
+import responses
+from django.urls import reverse
+from rest_framework.test import APITestCase
 
 from apps.fuel.models import FuelStation
 from services.fuel.spatial_index import SpatialIndexService
+
 
 class TripOptimizeAPITest(APITestCase):
     def setUp(self):
         # Create some fuel stations in the database
         FuelStation.objects.create(
-            station_id=1, name="Station 1", address="", city="", state="IL",
-            latitude=41.8, longitude=-87.6, price_per_gallon=Decimal("3.00")
+            station_id=1,
+            name="Station 1",
+            address="",
+            city="",
+            state="IL",
+            latitude=41.8,
+            longitude=-87.6,
+            price_per_gallon=Decimal("3.00"),
         )
         FuelStation.objects.create(
-            station_id=2, name="Station 2", address="", city="", state="NE",
-            latitude=41.0, longitude=-96.0, price_per_gallon=Decimal("3.20")
+            station_id=2,
+            name="Station 2",
+            address="",
+            city="",
+            state="NE",
+            latitude=41.0,
+            longitude=-96.0,
+            price_per_gallon=Decimal("3.20"),
         )
         FuelStation.objects.create(
-            station_id=3, name="Station 3", address="", city="", state="CO",
-            latitude=39.7, longitude=-104.9, price_per_gallon=Decimal("3.50")
+            station_id=3,
+            name="Station 3",
+            address="",
+            city="",
+            state="CO",
+            latitude=39.7,
+            longitude=-104.9,
+            price_per_gallon=Decimal("3.50"),
         )
-        
+
         # Reset spatial index singleton and initialize it
-        SpatialIndexService._instance = None
-        self.spatial_service = SpatialIndexService()
+        from repositories.fuel_station_repository import FuelStationRepository
+        self.repo = FuelStationRepository()
+        self.spatial_service = SpatialIndexService(repository=self.repo)
         self.spatial_service.refresh_index()
 
     @responses.activate
@@ -48,16 +69,20 @@ class TripOptimizeAPITest(APITestCase):
             responses.GET,
             "https://api.openrouteservice.org/v2/directions/driving-car",
             json={
-                "features": [{
-                    "geometry": {
-                        "coordinates": [
-                            [-87.6, 41.8],  # Chicago
-                            [-96.0, 41.0],  # Middle (Nebraska)
-                            [-104.9, 39.7]  # Denver
-                        ]
-                    },
-                    "properties": {"segments": [{"distance": 1600000, "duration": 54000}]}
-                }]
+                "features": [
+                    {
+                        "geometry": {
+                            "coordinates": [
+                                [-87.6, 41.8],  # Chicago
+                                [-96.0, 41.0],  # Middle (Nebraska)
+                                [-104.9, 39.7],  # Denver
+                            ]
+                        },
+                        "properties": {
+                            "segments": [{"distance": 1600000, "duration": 54000}]
+                        },
+                    }
+                ]
             },
             status=200,
         )
@@ -66,11 +91,11 @@ class TripOptimizeAPITest(APITestCase):
         data = {
             "origin": "Chicago, IL",
             "destination": "Denver, CO",
-            "max_range_miles": 500.0
+            "max_range_miles": 500.0,
         }
-        
+
         response = self.client.post(url, data, format="json")
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertIn("route_metadata", response.data)
         self.assertIn("fuel_stops", response.data)

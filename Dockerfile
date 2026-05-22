@@ -17,16 +17,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies into a virtualenv or just the system
-# We'll use a virtualenv to make copying easier
+# Install python dependencies into a virtualenv
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Copy requirements files
+COPY requirements/ ./requirements/
 COPY requirements.txt .
-# Note: scipy and pandas can take a long time to build from source.
-# Using slim-bookworm might require more binary wheels.
+
+# Install production requirements
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements/prod.txt
 
 # --- Stage 2: Final Image ---
 FROM python:3.12-slim-bookworm
@@ -60,6 +61,9 @@ COPY --chown=django:django . .
 RUN mkdir -p /app/staticfiles /app/media && \
     chown -R django:django /app/staticfiles /app/media
 
+# Collect static files
+RUN SECRET_KEY=dummy-for-collectstatic python manage.py collectstatic --noinput
+
 # Switch to non-root user
 USER django
 
@@ -70,5 +74,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
-# Start gunicorn by default (can be overridden in compose)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "config.wsgi:application"]
+# Start gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--access-logfile", "-", "config.wsgi:application"]

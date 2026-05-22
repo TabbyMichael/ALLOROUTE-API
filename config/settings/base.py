@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -53,7 +54,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -70,9 +71,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # Database
-DATABASES = {
-    "default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")
-}
+DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -99,6 +98,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -132,6 +134,8 @@ REST_FRAMEWORK = {
         "user": "100/minute",
     },
 }
+
+ORS_API_KEY = env("ORS_API_KEY", default="")
 
 if DEBUG:
     REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(

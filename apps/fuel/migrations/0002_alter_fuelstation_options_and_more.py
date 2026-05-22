@@ -6,20 +6,25 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('fuel', '0001_initial'),
+        ("fuel", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='fuelstation',
-            options={'verbose_name': 'Fuel Station', 'verbose_name_plural': 'Fuel Stations'},
+            name="fuelstation",
+            options={
+                "verbose_name": "Fuel Station",
+                "verbose_name_plural": "Fuel Stations",
+            },
         ),
         migrations.AddIndex(
-            model_name='fuelstation',
-            index=models.Index(fields=['state', 'city'], name='fuel_fuelst_state_99cf3a_idx'),
+            model_name="fuelstation",
+            index=models.Index(
+                fields=["state", "city"], name="fuel_fuelst_state_99cf3a_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='fuelstation',
-            index=models.Index(fields=['name'], name='fuel_fuelst_name_9ce2d4_idx'),
+            model_name="fuelstation",
+            index=models.Index(fields=["name"], name="fuel_fuelst_name_9ce2d4_idx"),
         ),
     ]

@@ -1,44 +1,46 @@
 import logging
-from typing import List, Dict, Tuple
 from dataclasses import dataclass
+from typing import Dict, List, Tuple
 
 from apps.trips.domain import Coordinate, FuelStationDTO, RouteCheckpoint
+from infrastructure.logging.utils import time_execution
 from services.fuel.spatial_index import SpatialIndexService
 from services.routing.geometry import GeometryService
 
-from infrastructure.logging.utils import time_execution
-
 logger = logging.getLogger("services.fuel")
+
 
 @dataclass(frozen=True)
 class CandidateStation:
     """
     A fuel station candidate linked to its position along the route.
     """
+
     station: FuelStationDTO
     distance_along_route: float
     distance_from_route: float  # Detour distance
 
+
 class CandidateReductionService:
     """
-    Reduces the search space of fuel stations to a minimal, high-quality set 
+    Reduces the search space of fuel stations to a minimal, high-quality set
     of candidates for the optimization algorithm.
     """
 
     def __init__(
-        self, 
+        self,
         spatial_index: SpatialIndexService = None,
-        geometry_service: GeometryService = None
+        geometry_service: GeometryService = None,
     ):
         self.spatial_index = spatial_index or SpatialIndexService()
         self.geometry_service = geometry_service or GeometryService()
 
     @time_execution(name="candidate_reduction")
     def reduce_candidates(
-        self, 
-        checkpoints: List[RouteCheckpoint], 
+        self,
+        checkpoints: List[RouteCheckpoint],
         corridor_radius_miles: float = 5.0,
-        max_candidates_per_segment: int = 5
+        max_candidates_per_segment: int = 5,
     ) -> List[CandidateStation]:
         """
         Main pipeline for candidate reduction.
@@ -46,15 +48,16 @@ class CandidateReductionService:
         2. Assign to route progress.
         3. Filter/Rank to keep only the most relevant candidates.
         """
-        logger.info(f"Reducing candidates along route with {len(checkpoints)} checkpoints...")
-        
+        logger.info(
+            f"Reducing candidates along route with {len(checkpoints)} checkpoints..."
+        )
+
         # 1. Fetch all stations within the corridor
         checkpoint_coords = [cp.coordinate for cp in checkpoints]
         raw_candidates = self.spatial_index.find_stations_along_corridor(
-            checkpoint_coords, 
-            radius_miles=corridor_radius_miles
+            checkpoint_coords, radius_miles=corridor_radius_miles
         )
-        
+
         if not raw_candidates:
             logger.warning("No fuel stations found in the route corridor.")
             return []
@@ -67,15 +70,14 @@ class CandidateReductionService:
             # Optimizing this: for a large number of checkpoints, we could use another KDTree
             # But here we assume checkpoints are manageable (e.g., 200-500)
             nearest_cp, dist_from_route = self._find_nearest_checkpoint(
-                station.coordinate, 
-                checkpoints
+                station.coordinate, checkpoints
             )
-            
+
             processed_candidates.append(
                 CandidateStation(
                     station=station,
                     distance_along_route=nearest_cp.distance_from_start,
-                    distance_from_route=dist_from_route
+                    distance_from_route=dist_from_route,
                 )
             )
 
@@ -85,23 +87,23 @@ class CandidateReductionService:
         # 4. Filter: Keep only the best candidates per segment to reduce complexity
         # A segment is defined by the max range (e.g., every 50 miles)
         reduced_set = self._filter_best_candidates(
-            processed_candidates, 
+            processed_candidates,
             segment_size_miles=50.0,
-            limit_per_segment=max_candidates_per_segment
+            limit_per_segment=max_candidates_per_segment,
         )
 
-        logger.info(f"Candidate reduction complete: {len(raw_candidates)} -> {len(reduced_set)}")
+        logger.info(
+            f"Candidate reduction complete: {len(raw_candidates)} -> {len(reduced_set)}"
+        )
         return reduced_set
 
     def _find_nearest_checkpoint(
-        self, 
-        coord: Coordinate, 
-        checkpoints: List[RouteCheckpoint]
+        self, coord: Coordinate, checkpoints: List[RouteCheckpoint]
     ) -> Tuple[RouteCheckpoint, float]:
         """
         Finds the nearest checkpoint to a coordinate and the distance to it.
         """
-        min_dist = float('inf')
+        min_dist = float("inf")
         nearest_cp = checkpoints[0]
 
         for cp in checkpoints:
@@ -109,17 +111,17 @@ class CandidateReductionService:
             if dist < min_dist:
                 min_dist = dist
                 nearest_cp = cp
-        
+
         return nearest_cp, min_dist
 
     def _filter_best_candidates(
-        self, 
-        candidates: List[CandidateStation], 
+        self,
+        candidates: List[CandidateStation],
         segment_size_miles: float = 50.0,
-        limit_per_segment: int = 5
+        limit_per_segment: int = 5,
     ) -> List[CandidateStation]:
         """
-        Groups candidates into segments along the route and keeps only the cheapest 
+        Groups candidates into segments along the route and keeps only the cheapest
         stations in each segment. This dramatically reduces K for the graph algorithm.
         """
         if not candidates:
@@ -136,10 +138,10 @@ class CandidateReductionService:
         final_candidates: List[CandidateStation] = []
         for segment_idx in sorted(segments.keys()):
             segment_candidates = segments[segment_idx]
-            
+
             # Sort by price (cheapest first)
             segment_candidates.sort(key=lambda x: x.station.price_per_gallon)
-            
+
             # Take the top N
             final_candidates.extend(segment_candidates[:limit_per_segment])
 
