@@ -146,4 +146,4 @@ docker-compose exec api pytest
 
 ---
 
-**Developed with 🛠️ by Gemini CLI for the AlloRoute Engineering Challenge.**
+**Developed with 🛠️ by Kibugu Ian for the AlloRoute Engineering Challenge.**
