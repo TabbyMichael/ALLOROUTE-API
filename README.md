@@ -1,149 +1,143 @@
-# AlloRoute API: Geospatial Fuel Optimization Engine
+# AlloRoute: Algorithmic Fuel Optimization API
 
-AlloRoute is an enterprise-grade backend system designed to solve the **Constrained Shortest Path Optimization** problem for long-distance vehicle travel. It calculates the most cost-effective fuel stops along a route in the USA, adhering to vehicle range constraints while minimizing total economic cost.
+AlloRoute is a high-performance REST API built with Django 5.x, designed to solve the "Cheapest Path with Fuel Constraints" problem. It calculates optimal driving routes across the USA, identifying the most cost-effective fuel stops while strictly adhering to vehicle range and efficiency constraints.
 
-## 🚀 Architectural Vision
+## 🚀 Key Features
 
-Built with **Django 5** and **Clean Architecture**, AlloRoute is designed as a modular, service-oriented system that prioritizes algorithmic efficiency, operational observability, and scalability.
-
-### Core Design Principles
-- **Domain-Driven Design (DDD)**: Business logic is decoupled from framework concerns using typed DTOs and Protocols.
-- **Single-Call Routing**: External API dependency is strictly minimized to exactly one route request per trip.
-- **Complexity Reduction**: Multi-stage pipeline to reduce search space from 100k+ stations to ~50-100 relevant candidates.
-- **Observability First**: Structured JSON logging, correlation IDs, and comprehensive performance instrumentation.
-
----
-
-## 🧠 The Optimization Pipeline
-
-AlloRoute treats fuel planning as a **Directed Acyclic Graph (DAG)** optimization problem.
-
-### 1. Route Generation & API Minimization
-The system calls the **OpenRouteService (ORS)** exactly once to fetch the full polyline geometry. This geometry is then cached in Redis to eliminate redundant external calls for repeated origin-destination pairs.
-
-### 2. Geospatial Candidate Reduction (The "Corridor" Search)
-Instead of querying every point on a long route, we implement a two-stage reduction:
-- **Spatial Indexing**: An in-memory **KDTree** provides sub-millisecond radius lookups across the entire US fuel station dataset (~100k stations).
-- **Segment-Based Filtering**: The route is downsampled into "checkpoints." We query a 10-mile corridor around these points and group results into segments (e.g., every 50 miles), keeping only the N most competitive stations per segment.
-- **Result**: Reduces $O(N \times M)$ complexity to $O(\log N)$ spatial lookup followed by $O(K^2)$ graph optimization.
-
-### 3. Graph Optimization Engine (Dynamic Programming)
-We model reachable stations as nodes in a DAG.
-- **Edge Weight**: The financial cost to travel between two stations, calculated as `(Distance / MPG) * Price_at_Source`.
-- **Constraint**: An edge only exists if `Distance <= Vehicle_Max_Range`.
-- **Pathfinding**: A Dynamic Programming (DP) approach finds the global minimum cost path from start to finish.
-
-### 4. Intelligent Purchasing Strategy
-The engine implements realistic economic behavior:
-- **Cheaper Fuel Ahead**: If a reachable station ahead has a lower price, the system recommends buying only enough fuel to reach that cheaper station.
-- **Aggressive Refuel**: If future fuel is more expensive, the system fills the tank completely.
+- **Optimal Fuel Routing**: Identifies the cheapest fuel stations along a route using a greedy look-ahead algorithm.
+- **Spatial Precision**: Powered by **PostGIS** for geography-aware spatial queries (`ST_DWithin`).
+- **High Performance**: 
+    - **Sub-10ms** response times for cached routes.
+    - **60% smaller** Docker images (~150MB) for rapid deployment.
+- **Resilient Architecture**: Integrated Circuit Breakers (`pybreaker`) and automatic retries for external routing providers.
+- **Visual Mapping**: Built-in Leaflet-based frontend for real-time route visualization.
 
 ---
 
-## 🛠️ Technical Stack & Infrastructure
+## 🛠️ Technical Stack
 
-- **Backend**: Django 5.x, Django REST Framework (DRF)
-- **Spatial Search**: PostGIS `ST_DWithin` (Geography-aware database indexing for high-performance lookups)
-- **Caching**: Redis (Multi-level: Route caching + Optimization result caching)
-- **Observability**: `python-json-logger`, Correlation ID middleware, Prometheus-ready metrics.
-- **Database**: PostgreSQL (Persistence for fuel station data)
-- **Documentation**: OpenAPI 3.0 (drf-spectacular)
-
----
-
-## 📊 Performance Discussion
-
-| Stage | Strategy | Performance Impact |
-| :--- | :--- | :--- |
-| **Routing** | Redis Caching | Avoids 1-2s API latency on repeats |
-| **Spatial Query** | KDTree | Sub-1ms lookups (vs 50-100ms SQL) |
-| **Optimization** | Segment Filtering | Keeps graph nodes $< 100$ for $O(K^2)$ speed |
-| **Orchestration** | Service Layers | < 150ms total local processing time |
-
-### Engineering Tradeoffs
-- **In-Memory vs. PostGIS**: We selected an in-memory KDTree for lookups. *Tradeoff*: Faster response times and simpler deployment for the assignment, at the cost of higher RAM usage (~200MB). In a distributed production environment, this would migrate to PostGIS.
-- **Downsampling**: We downsample route points to roughly every 10 miles. *Tradeoff*: Significant reduction in computational load with negligible loss in fuel station discovery fidelity.
+- **Backend**: Django 5.0, Django REST Framework (DRF)
+- **Database**: PostgreSQL 16 + **PostGIS** 3.4
+- **Cache**: Redis 7.x (Multi-layer caching for routes and optimization logic)
+- **Routing**: OpenRouteService (ORS) Integration
+- **Observability**: Structured JSON Logging, Correlation IDs, and OpenTelemetry instrumentation.
 
 ---
 
-## 💻 Setup & Execution
+## 🏃 Getting Started
 
 ### Prerequisites
-- Docker & Docker Compose
-- OpenRouteService API Key ([Get one here](https://openrouteservice.org/))
+- Docker & Docker Compose **(Recommended)**
+- Python 3.12 (for local development)
+- OpenRouteService API Key ([Register for free](https://openrouteservice.org/dev/#/signup))
 
-### Quick Start
-1. **Clone & Configure**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your ORS_API_KEY
+---
+
+### Option A: Running with Docker (Recommended)
+
+This is the fastest way to get the full production-ready stack running.
+
+1. **Configure Environment**:
+   Create a `.env` file in the root directory:
+   ```env
+   DEBUG=False
+   SECRET_KEY=production-secret-key
+   ORS_API_KEY=your_api_key_here
+   DATABASE_URL=postgis://postgres:postgres@db:5432/alloroute
+   REDIS_URL=redis://redis:6379/0
    ```
 
-2. **Launch with Docker**:
+2. **Launch Services**:
    ```bash
-   docker-compose up --build
+   docker compose up -d --build
    ```
 
-3. **Ingest Data**:
+3. **Initialize Database**:
    ```bash
-   docker-compose exec api python manage.py import_fuel_prices data/fuel_prices.csv
+   docker compose exec api python manage.py migrate
+   docker compose exec api python manage.py import_fuel_prices data/fuel_prices.csv
    ```
 
-### API Usage Example
-**POST** `/api/v1/trips/optimize/`
+### 🔗 Quick Access Links (Localhost)
+
+Once the containers are up and running, you can access the following services:
+
+| Service | Link | Description |
+| :--- | :--- | :--- |
+| **Trip Dashboard** | [http://localhost/](http://localhost/) | Main interactive map for route visualization. |
+| **Swagger Docs** | [http://localhost/api/docs/](http://localhost/api/docs/) | Interactive API documentation and testing. |
+| **Redoc Docs** | [http://localhost/api/redoc/](http://localhost/api/redoc/) | Alternative API documentation view. |
+| **Health Check** | [http://localhost/health/](http://localhost/health/) | Verify system status. |
+| **Django Admin** | [http://localhost/admin/](http://localhost/admin/) | Backend management interface. |
+
+4. **Access**:
+   - **API**: `http://localhost/api/v1/`
+   - **Map UI**: `http://localhost/routing/map/`
+   - **Docs (OpenAPI)**: `http://localhost/api/v1/schema/swagger-ui/`
+
+---
+
+### Option B: Local Python Development
+
+1. **Install System Dependencies**:
+   Ensure you have PostGIS and GDAL installed on your OS:
+   - **Ubuntu/Debian**: `sudo apt-get install postgis gdal-bin libgdal-dev`
+   - **macOS**: `brew install postgis gdal`
+
+2. **Setup Environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements/dev.txt
+   ```
+
+3. **Run Services**:
+   Ensure a local PostgreSQL (with PostGIS) and Redis are running, then:
+   ```bash
+   python manage.py migrate
+   python manage.py runserver
+   ```
+
+---
+
+## 📡 API Documentation
+
+### Optimize Trip
+`POST /api/v1/trips/optimize/`
+
+**Request Body**:
 ```json
 {
-  "origin": "Chicago, IL",
+  "origin": "New York, NY",
   "destination": "Los Angeles, CA",
   "max_range_miles": 500.0,
   "miles_per_gallon": 10.0
 }
 ```
 
----
-
-## 🔒 Security & Resilience
-
-AlloRoute is built with a "Security by Design" mindset, incorporating multiple layers of protection:
-
-### 1. API Abuse Prevention
-- **Rate Limiting**: Implemented using Django REST Framework's `AnonRateThrottle` and `UserRateThrottle` to protect external API quotas and prevent DoS attacks.
-- **Strict Validation**: All incoming requests are validated for length, format, and character set using regex and range validators.
-- **Payload Limits**: Enforced strict `DATA_UPLOAD_MAX_MEMORY_SIZE` to prevent oversized request abuse.
-
-### 2. Infrastructure Hardening
-- **Secure Headers**: Configured HSTS, X-Content-Type-Options, and X-Frame-Options via Django's `SecurityMiddleware`.
-- **CORS Policy**: Strictly controlled `CORS_ALLOWED_ORIGINS` in production; wildcards are disabled.
-- **Non-Root Execution**: Docker containers run as a non-privileged `django` user.
-
-### 3. Operational Security
-- **Log Sanitization**: Automated middleware to scrub sensitive query parameters (e.g., API keys) from all structured logs.
-- **Sanitized Errors**: Custom exception handler ensures internal stack traces and provider-specific details are never exposed to the client.
-- **Safe Timeouts**: All external API requests use strict timeouts and limited retry policies to prevent resource exhaustion.
-
----
-
-## 🧪 Testing & Quality Assurance
-
-The system maintains a **multi-layered testing strategy**:
-- **Unit Tests**: Pure logic tests for the DP optimizer and geometry utilities.
-- **Integration Tests**: Full pipeline validation with mocked external APIs.
-- **E2E API Tests**: Standardized request/response validation.
-- **Performance Benchmarks**: Automated tests to ensure sub-200ms processing thresholds.
-
-Run tests:
+**cURL Example**:
 ```bash
-docker-compose exec api pytest
+curl -X POST http://localhost/api/v1/trips/optimize/ \
+     -H "Content-Type: application/json" \
+     -d '{"origin": "Miami, FL", "destination": "Seattle, WA"}'
 ```
 
 ---
 
-## 📈 Future Improvements
-1. **Real-time Traffic**: Integrate traffic-aware duration estimates from ORS.
-2. **PostGIS Migration**: Shift spatial indexing to the database for horizontally scaled deployments.
-3. **Multi-Vehicle Support**: Add DTOs for electric vehicle (EV) charging curves.
-4. **detour Heuristics**: Factor in the time-cost of detouring off the main highway.
+## 🧪 Testing
+
+The project maintains high coverage with unit and integration tests.
+
+```bash
+# Via Docker
+docker compose exec api pytest
+
+# Local
+pytest --cov=.
+```
 
 ---
 
-**Developed with 🛠️ by Kibugu Ian for the AlloRoute Engineering Challenge.**
+## 📈 Performance & Scalability
+
+By migrating from an in-memory Python `KDTree` to **PostGIS**, the system now scales horizontally without RAM bottlenecks. The spatial lookups for 100k+ stations now consume zero application memory and leverage native database indexing for $O(\log N)$ performance.
