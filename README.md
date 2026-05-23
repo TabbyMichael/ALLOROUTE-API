@@ -43,7 +43,7 @@ The engine implements realistic economic behavior:
 ## 🛠️ Technical Stack & Infrastructure
 
 - **Backend**: Django 5.x, Django REST Framework (DRF)
-- **Spatial Search**: `scipy.spatial.KDTree` (In-memory for low-latency lookups)
+- **Spatial Search**: PostGIS `ST_DWithin` (Geography-aware database indexing for high-performance lookups)
 - **Caching**: Redis (Multi-level: Route caching + Optimization result caching)
 - **Observability**: `python-json-logger`, Correlation ID middleware, Prometheus-ready metrics.
 - **Database**: PostgreSQL (Persistence for fuel station data)

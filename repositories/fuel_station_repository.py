@@ -1,6 +1,9 @@
 from decimal import Decimal
 from typing import List, Optional
 
+from django.contrib.gis.geos import LineString, Point
+from django.contrib.gis.measure import D
+
 from apps.fuel.models import FuelStation
 from apps.trips.domain import Coordinate, FuelStationDTO
 
@@ -23,8 +26,7 @@ class FuelStationRepository:
             "address",
             "city",
             "state",
-            "latitude",
-            "longitude",
+            "location",
             "price_per_gallon",
         ).iterator(chunk_size=2000)
 
@@ -40,10 +42,31 @@ class FuelStationRepository:
             "address",
             "city",
             "state",
-            "latitude",
-            "longitude",
+            "location",
             "price_per_gallon",
         )
+        return [self._to_dto(s) for s in stations]
+
+    def find_nearby_stations(
+        self, coordinate: Coordinate, radius_miles: float
+    ) -> List[FuelStationDTO]:
+        """
+        Finds stations within a radius using PostGIS geography dwithin.
+        """
+        pnt = Point(coordinate.longitude, coordinate.latitude, srid=4326)
+        stations = FuelStation.objects.filter(location__dwithin=(pnt, D(mi=radius_miles)))
+        return [self._to_dto(s) for s in stations]
+
+    def find_stations_along_corridor(
+        self, coordinates: List[Coordinate], radius_miles: float
+    ) -> List[FuelStationDTO]:
+        """
+        Finds stations along a route corridor using PostGIS geography dwithin.
+        """
+        if not coordinates:
+            return []
+        line = LineString([(c.longitude, c.latitude) for c in coordinates], srid=4326)
+        stations = FuelStation.objects.filter(location__dwithin=(line, D(mi=radius_miles)))
         return [self._to_dto(s) for s in stations]
 
     def _to_dto(self, station: FuelStation) -> FuelStationDTO:
@@ -54,7 +77,7 @@ class FuelStationRepository:
             city=station.city,
             state=station.state,
             coordinate=Coordinate(
-                latitude=station.latitude, longitude=station.longitude
+                latitude=station.location.y, longitude=station.location.x
             ),
             price_per_gallon=float(station.price_per_gallon),
         )

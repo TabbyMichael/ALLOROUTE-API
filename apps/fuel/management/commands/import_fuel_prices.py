@@ -1,6 +1,7 @@
 import csv
 from decimal import Decimal, InvalidOperation
 
+from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.fuel.models import FuelStation
@@ -22,15 +23,18 @@ class Command(BaseCommand):
                     try:
                         # Map CSV headers to model fields
                         # Expected headers: OPIS Truckstop ID, Truckstop Name, Address, City, State, Rack ID, Retail Price, Latitude, Longitude
-                        _, created = FuelStation.objects.get_or_create(
-                            station_id=int(row["OPIS Truckstop ID"]),
+                        station_id = int(row["OPIS Truckstop ID"])
+                        lat = float(row["Latitude"])
+                        lng = float(row["Longitude"])
+                        
+                        _, created = FuelStation.objects.update_or_create(
+                            station_id=station_id,
                             defaults={
                                 "name": row["Truckstop Name"],
                                 "address": row["Address"],
                                 "city": row["City"],
                                 "state": row["State"],
-                                "latitude": float(row["Latitude"]),
-                                "longitude": float(row["Longitude"]),
+                                "location": Point(lng, lat),
                                 "price_per_gallon": Decimal(row["Retail Price"]),
                             },
                         )

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from django.contrib.gis.geos import Point
 
 from apps.fuel.models import FuelStation
 from apps.trips.domain import Coordinate, RouteMetadata, VehicleConfig
@@ -33,8 +34,7 @@ def sample_stations():
         FuelStation(
             station_id=1,
             name="Station A",
-            latitude=34.0,
-            longitude=-118.0,
+            location=Point(-118.0, 34.0),
             price_per_gallon=3.50,
             address="Addr A",
             city="City A",
@@ -43,8 +43,7 @@ def sample_stations():
         FuelStation(
             station_id=2,
             name="Station B",
-            latitude=35.0,
-            longitude=-117.0,
+            location=Point(-117.0, 35.0),
             price_per_gallon=3.20,
             address="Addr B",
             city="City B",
@@ -53,8 +52,7 @@ def sample_stations():
         FuelStation(
             station_id=3,
             name="Station C",
-            latitude=36.0,
-            longitude=-116.0,
+            location=Point(-116.0, 36.0),
             price_per_gallon=3.80,
             address="Addr C",
             city="City C",
@@ -78,7 +76,7 @@ def spatial_index(sample_stations):
             address=s.address,
             city=s.city,
             state=s.state,
-            coordinate=Coordinate(s.latitude, s.longitude),
+            coordinate=Coordinate(s.location.y, s.location.x),
             price_per_gallon=float(s.price_per_gallon),
         )
         for s in sample_stations
@@ -89,9 +87,7 @@ def spatial_index(sample_stations):
     service = SpatialIndexService(repository=mock_repo)
 
     # Reset singleton state for testing
-    SpatialIndexService._tree = None
-    SpatialIndexService._stations = []
-
+    # Note: SpatialIndexService no longer has _tree or _stations attributes
     service.refresh_index()
     return service
 
