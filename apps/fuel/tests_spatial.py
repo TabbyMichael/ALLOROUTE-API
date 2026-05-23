@@ -10,7 +10,7 @@ from services.fuel.spatial_index import SpatialIndexService
 class SpatialIndexTest(SimpleTestCase):
     def setUp(self):
         self.mock_repo = MagicMock(spec=FuelStationRepository)
-        self.mock_repo.get_all_stations.return_value = [
+        self.sample_dtos = [
             FuelStationDTO(
                 id=1,
                 name="Station 1",
@@ -39,28 +39,28 @@ class SpatialIndexTest(SimpleTestCase):
                 price_per_gallon=3.70,
             ),
         ]
-        # Ensure we are using a fresh instance for each test
-        SpatialIndexService._instance = None
         self.service = SpatialIndexService(repository=self.mock_repo)
-        self.service.refresh_index()
 
     def test_spatial_index_initialization(self):
         stats = self.service.get_stats()
-        self.assertEqual(stats["station_count"], 3)
         self.assertTrue(stats["is_initialized"])
+        self.assertEqual(stats["engine"], "PostGIS")
 
     def test_find_nearby_stations(self):
+        # Setup mock to return specific stations
+        self.mock_repo.find_nearby_stations.return_value = [self.sample_dtos[0], self.sample_dtos[1]]
+        
         nearby = self.service.find_nearby_stations(
             Coordinate(latitude=40.0, longitude=-80.0), radius_miles=20.0
         )
 
         self.assertEqual(len(nearby), 2)
-        ids = [s.id for s in nearby]
-        self.assertIn(1, ids)
-        self.assertIn(2, ids)
-        self.assertNotIn(3, ids)
+        self.mock_repo.find_nearby_stations.assert_called_once()
 
     def test_find_stations_along_corridor(self):
+        # Setup mock to return specific stations
+        self.mock_repo.find_stations_along_corridor.return_value = [self.sample_dtos[0], self.sample_dtos[2]]
+        
         checkpoints = [
             Coordinate(latitude=40.0, longitude=-80.0),
             Coordinate(latitude=45.0, longitude=-90.0),
@@ -70,7 +70,5 @@ class SpatialIndexTest(SimpleTestCase):
             checkpoints, radius_miles=10.0
         )
 
-        self.assertGreaterEqual(len(stations), 2)
-        ids = [s.id for s in stations]
-        self.assertIn(1, ids)
-        self.assertIn(3, ids)
+        self.assertEqual(len(stations), 2)
+        self.mock_repo.find_stations_along_corridor.assert_called_once()

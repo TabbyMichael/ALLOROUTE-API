@@ -99,7 +99,7 @@ class IngestFuelPricesTest(TestCase):
         station = FuelStation.objects.get(station_id=10)
         self.assertEqual(station.name, "Valid Station")
         self.assertEqual(station.price_per_gallon, Decimal("3.50"))
-        self.assertEqual(station.latitude, 40.0)
+        self.assertEqual(station.location.y, 40.0)
 
     def test_ingestion_file_not_found(self):
         """Test that CommandError is raised if file does not exist."""

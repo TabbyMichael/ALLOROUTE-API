@@ -40,9 +40,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE="config.settings.production"
 
 # Install runtime dependencies
+# binutils, libproj-dev and gdal-bin are required for GeoDjango
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    binutils \
+    libproj-dev \
+    gdal-bin \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
@@ -62,7 +66,10 @@ RUN mkdir -p /app/staticfiles /app/media && \
     chown -R django:django /app/staticfiles /app/media
 
 # Collect static files
-RUN SECRET_KEY=dummy-for-collectstatic python manage.py collectstatic --noinput
+# Providing dummy values for build-time operations
+RUN SECRET_KEY=dummy-for-collectstatic \
+    ALLOWED_HOSTS=localhost \
+    python manage.py collectstatic --noinput
 
 # Switch to non-root user
 USER django
