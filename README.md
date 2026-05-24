@@ -64,16 +64,16 @@ Once the containers are up and running, you can access the following services:
 
 | Service | Link | Description |
 | :--- | :--- | :--- |
-| **Trip Dashboard** | [http://localhost/](http://localhost/) | Main interactive map for route visualization. |
-| **Swagger Docs** | [http://localhost/api/docs/](http://localhost/api/docs/) | Interactive API documentation and testing. |
-| **Redoc Docs** | [http://localhost/api/redoc/](http://localhost/api/redoc/) | Alternative API documentation view. |
-| **Health Check** | [http://localhost/health/](http://localhost/health/) | Verify system status. |
-| **Django Admin** | [http://localhost/admin/](http://localhost/admin/) | Backend management interface. |
+| **Trip Dashboard** | [http://localhost:8080/](http://localhost:8080/) | Main interactive map for route visualization. |
+| **Swagger Docs** | [http://localhost:8080/api/docs/](http://localhost:8080/api/docs/) | Interactive API documentation and testing. |
+| **Redoc Docs** | [http://localhost:8080/api/redoc/](http://localhost:8080/api/redoc/) | Alternative API documentation view. |
+| **Health Check** | [http://localhost:8080/health/](http://localhost:8080/health/) | Verify system status. |
+| **Django Admin** | [http://localhost:8080/admin/](http://localhost:8080/admin/) | Backend management interface. |
 
 4. **Access**:
-   - **API**: `http://localhost/api/v1/`
-   - **Map UI**: `http://localhost/routing/map/`
-   - **Docs (OpenAPI)**: `http://localhost/api/v1/schema/swagger-ui/`
+   - **API**: `http://localhost:8080/api/v1/`
+   - **Map UI**: `http://localhost:8080/`
+   - **Docs (OpenAPI)**: `http://localhost:8080/api/schema/swagger-ui/`
 
 ---
 
@@ -117,7 +117,7 @@ Once the containers are up and running, you can access the following services:
 
 **cURL Example**:
 ```bash
-curl -X POST http://localhost/api/v1/trips/optimize/ \
+curl -X POST http://localhost:8080/api/v1/trips/optimize/ \
      -H "Content-Type: application/json" \
      -d '{"origin": "Miami, FL", "destination": "Seattle, WA"}'
 ```

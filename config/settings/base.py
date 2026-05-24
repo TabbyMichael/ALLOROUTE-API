@@ -143,6 +143,7 @@ REST_FRAMEWORK = {
 }
 
 ORS_API_KEY = env("ORS_API_KEY", default="")
+COLLECT_API_KEY = env("COLLECT_API_KEY", default="")
 
 if DEBUG:
     REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(

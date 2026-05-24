@@ -73,5 +73,6 @@ class OptimizationResult:
     total_fuel_cost: float
     total_gallons: float
     vehicle_config: VehicleConfig
+    candidate_stations: List[FuelStationDTO] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.now)
     execution_ms: Optional[float] = None

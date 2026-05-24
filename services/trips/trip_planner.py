@@ -76,15 +76,6 @@ class TripPlannerService:
         else:
             logger.info(f"Using cached route for {origin} -> {destination}")
 
-        # Tier Enforcement: Basic users limited to 1000 miles
-        if user_role == "basic" and route_metadata.total_distance_miles > 1000:
-            from apps.common.exceptions import ValidationError
-
-            raise ValidationError(
-                f"Basic tier is limited to 1000 miles. This route is {route_metadata.total_distance_miles} miles. Please upgrade to Premium for longer trips.",
-                code="tier_limit_exceeded",
-            )
-
         # 2. Process Geometry (Decode and Downsample)
         coordinates = self.geometry_service.decode_polyline(route_metadata.polyline)
         checkpoints = self.geometry_service.downsample_route(
