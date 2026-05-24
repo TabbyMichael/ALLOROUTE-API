@@ -12,10 +12,7 @@ def health_check(request):
     return JsonResponse({"status": "healthy"})
 
 
-from apps.routing.views_ui import TripDashboardView
-
 urlpatterns = [
-    path("", TripDashboardView.as_view(), name="home"),
     path("admin/", admin.site.urls),
     path("health/", health_check),
     # API Documentation

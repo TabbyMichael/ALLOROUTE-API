@@ -36,6 +36,21 @@
         let routeLayer = L.layerGroup().addTo(map);
         let markerLayer = L.layerGroup().addTo(map);
 
+        // Custom Icons
+        const gasIcon = L.icon({
+            iconUrl: 'https://img.icons8.com/color/48/000000/gas-station.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const candidateIcon = L.icon({
+            iconUrl: 'https://img.icons8.com/color/48/ff0000/gas-station.png',
+            iconSize: [20, 20],
+            iconAnchor: [10, 20],
+            popupAnchor: [0, -20]
+        });
+
         function setupAutocomplete(inputId, resultsId) {
             const input = document.getElementById(inputId);
             const results = document.getElementById(resultsId);
@@ -82,7 +97,15 @@
 
                 if (!res.ok) {
                     const errorData = await res.json();
-                    throw new Error(errorData.error || errorData.detail || 'Optimization failed');
+                    let message = 'Optimization failed';
+                    if (errorData.error && errorData.error.message) {
+                        message = errorData.error.message;
+                    } else if (errorData.detail) {
+                        message = errorData.detail;
+                    } else {
+                        message = JSON.stringify(errorData);
+                    }
+                    throw new Error(message);
                 }
 
                 const data = await res.json();
@@ -93,16 +116,34 @@
                     map.fitBounds(L.polyline(data.route_metadata.coordinates).getBounds());
                 }
 
+                // Render all available stations near the route
+                if (data.candidate_stations) {
+                    data.candidate_stations.forEach(station => {
+                        L.marker([station.lat, station.lng], {icon: candidateIcon}).addTo(markerLayer).bindPopup(`
+                            <b>${station.name}</b> (Available)<br>
+                            Price: $${station.price_per_gallon}/gal
+                        `);
+                    });
+                }
+
+                // Render the recommended stops
                 data.fuel_stops.forEach(stop => {
-                    L.marker([stop.station.lat, stop.station.lng]).addTo(markerLayer).bindPopup(`
-                        <b>${stop.station.name}</b><br>
+                    L.marker([stop.station.lat, stop.station.lng], {icon: gasIcon}).addTo(markerLayer).bindPopup(`
+                        <b class="text-blue-600">${stop.station.name}</b> (Recommended)<br>
                         Price: $${stop.station.price_per_gallon}/gal<br>
                         Refuel: ${stop.gallons_to_buy.toFixed(2)} gal<br>
                         Cost: $${stop.cost.toFixed(2)}
-                    `);
+                    `).openPopup();
                 });
 
-                document.getElementById('summary').innerHTML = `Total Cost: $${data.total_fuel_cost.toFixed(2)}`;
+                document.getElementById('summary').innerHTML = `
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                        <p class="font-bold">Trip Summary</p>
+                        <p>Total Cost: $${data.total_fuel_cost !== undefined ? data.total_fuel_cost.toFixed(2) : '0.00'}</p>
+                        <p>Fuel Consumed: ${data.total_gallons !== undefined ? data.total_gallons.toFixed(2) : '0.00'} gallons</p>
+                        <p>Distance: ${data.route_metadata && data.route_metadata.total_distance_miles ? data.route_metadata.total_distance_miles.toFixed(2) : '0.00'} miles</p>
+                    </div>
+                `;
             } catch (err) {
                 alert(`Error: ${err.message}`);
                 console.error(err);

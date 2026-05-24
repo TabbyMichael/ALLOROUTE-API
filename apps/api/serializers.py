@@ -83,7 +83,9 @@ class TripOptimizationResponseSerializer(serializers.Serializer):
 
     route_metadata = RouteMetadataSerializer()
     fuel_stops = FuelStopSerializer(many=True)
+    candidate_stations = FuelStationSerializer(many=True)
     total_fuel_cost = serializers.FloatField()
+    total_gallons = serializers.FloatField()
 class ErrorDetailSerializer(serializers.Serializer):
     code = serializers.CharField(help_text="Machine-readable error code")
     message = serializers.CharField(help_text="Human-readable error message")

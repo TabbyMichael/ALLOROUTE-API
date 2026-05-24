@@ -16,24 +16,34 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-config.settings.production}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,api,nginx}
+      - ORS_API_KEY=${ORS_API_KEY}
+      - COLLECT_API_KEY=${COLLECT_API_KEY}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
 
+  vanilla:
+    build:
+      context: ./vanilla
+    image: alloroute-vanilla:latest
+    container_name: alloroute_vanilla
+    restart: always
+
   nginx:
     image: nginx:1.25-alpine
     container_name: alloroute_nginx
     restart: always
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
     depends_on:
       - api
+      - vanilla
 
   db:
     image: postgis/postgis:16-3.4

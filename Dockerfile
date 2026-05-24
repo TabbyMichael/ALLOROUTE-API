@@ -69,6 +69,7 @@ RUN mkdir -p /app/staticfiles /app/media && \
 # Providing dummy values for build-time operations
 RUN SECRET_KEY=dummy-for-collectstatic \
     ALLOWED_HOSTS=localhost \
+    REDIS_URL=redis://localhost:6379/0 \
     python manage.py collectstatic --noinput
 
 # Switch to non-root user

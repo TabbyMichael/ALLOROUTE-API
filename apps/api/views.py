@@ -2,7 +2,7 @@ import logging
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,10 +20,10 @@ logger = logging.getLogger("apps.api")
 class TripOptimizeView(APIView):
     """
     Endpoint for optimizing fuel stops along a route.
-    Requires authentication.
+    Available to all users.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_exception_handler(self):
         from apps.api.exceptions import custom_exception_handler
